@@ -32,37 +32,51 @@ fn main() {
             let file = File::open(args.file.as_str()).unwrap();
             let reader = BufReader::new(file);
             let mut total_lines = 0;
+            let mut empty_lines = 0;
+            let mut err_lines = 0;
             let mut ok = 0;
             for line in reader.lines() {
-                total_lines += 1;
-                match stream.write(format!("{}\r\n", line.unwrap()).as_bytes()) {
-                    Ok(v) if args.debug => {
-                        println!("{} written {} bytes",  args.file.as_str(), v);
-                        println!("{} send msg to {} ok", args.file.as_str(), args.host.as_str());
-                        ok += 1;
+                match line {
+                    Ok(line) => {
+                        if line.is_empty() {
+                            empty_lines += 1;
+                            continue;
+                        }
+                        total_lines += 1;
+                        match stream.write(format!("{}\r\n", line).as_bytes()) {
+                            Ok(v) if args.debug => {
+                                println!("{} written {} bytes", args.file.as_str(), v);
+                                println!("{} send msg to {} ok", args.file.as_str(), args.host.as_str());
+                                ok += 1;
+                            }
+                            Ok(_v) => {
+                                ok += 1;
+                            }
+                            Err(e) => {
+                                println!("writ error: {}", e);
+                                break;
+                            }
+                        }
+                        match stream.flush() {
+                            Ok(()) => {}
+                            Err(fe) => {
+                                eprintln!("flush write error {:?}", fe);
+                            }
+                        }
+                        if args.sleep > 0 {
+                            let sleep_ms: time::Duration = time::Duration::from_millis(args.sleep);
+                            thread::sleep(sleep_ms);
+                        }
                     }
-                    Ok(_v) => {
-                        ok += 1;
+                    Err(err) => {
+                        err_lines += 1;
+                        eprintln!("read line error: {}", err);
                     }
-                    Err(e) => {
-                        println!("writ error: {}", e);
-                        break;
-                    }
-                }
-                match stream.flush() {
-                    Ok(()) => {}
-                    Err(fe) => {
-                        eprintln!("flush write error {:?}", fe);
-                    }
-                }
-                if args.sleep > 0 {
-                    let sleep_ms: time::Duration = time::Duration::from_millis(args.sleep);
-                    thread::sleep(sleep_ms);
                 }
             }
             let cost = start.elapsed().as_micros();
-            println!("cost {} ms", cost/1000);
-            println!("total lines {}, ok {},  qps {}/s", total_lines, ok, total_lines * 1000 * 1000/cost);
+            println!("cost {} ms", cost / 1000);
+            println!("total lines {}, ok {},  qps {}/s", total_lines, ok, total_lines * 1000 * 1000 / cost);
         }
         Err(e) => {
             eprintln!("Failed to connect args {:?} , result => {:?}", args, e);
