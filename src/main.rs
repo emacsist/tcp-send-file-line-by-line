@@ -76,7 +76,7 @@ fn main() {
             }
             let cost = start.elapsed().as_micros();
             println!("cost {} ms", cost / 1000);
-            println!("total lines {}, ok {},  qps {}/s", total_lines, ok, total_lines * 1000 * 1000 / cost);
+            println!("total lines {}, empty {}, error {} ok {}, qps {}/s", total_lines, empty_lines, err_lines, ok, total_lines * 1000 * 1000 / cost);
         }
         Err(e) => {
             eprintln!("Failed to connect args {:?} , result => {:?}", args, e);
